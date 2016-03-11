@@ -186,6 +186,8 @@ function Write-Repeating {
     $($Character.ToString() * $Width)
 }
 
+new-alias -Name repeat -Value Write-Repeating -description "Repeat a character x times" -force
+
 function Write-Center {
     <# 
     .SYNOPSIS 
@@ -231,6 +233,8 @@ function Write-Center {
     $retval    
 }
 
+new-alias -Name center -Value Write-Center -description "Center text on the screen" -force
+
 function Write-Right {
     <# 
     .SYNOPSIS 
@@ -262,13 +266,15 @@ function Write-Right {
         [Char]
         $Char = " "
     )
-    #get the width of the console minus the test
+    #get the width of the console minus the text
     $Width = (($Host.UI.RawUI.WindowSize.Width) - ($Text.Length) - 1)
 
     $retval = (Write-Repeating $Char.ToString() $Width) + $Text
 
     $retval    
 }
+
+new-alias -Name right -Value Write-Right -description "Right-justify text" -force
 
 function Write-Trace {
   <#
@@ -336,6 +342,155 @@ function Write-Trace {
 }
 New-Alias -name wt -value Write-Trace -Description "Write output in trace32 format" -Force
 
+function Write-ColorText {
+  <#
+    .Synopsis
+      Write in color
+    .Description
+      A simple function to replace Write-Host with more "in-line" color options. Write-Host with -nonewline works fine and dandy, but makes for long lines. This way we can specify a line of text with mixed color in 1 command.
+
+      Originally found at https://stackoverflow.com/questions/2688547/muliple-foreground-colors-in-powershell-in-one-command
+
+      Note: We don't have parameters specified in the function - we parse all params for the specific ones we want (it's actually simpler this way). 
+
+      Color options: 
+        -Black
+        -DarkBlue
+        -DarkGreen
+        -DarkCyan
+        -DarkRed
+        -DarkMagenta
+        -DarkYellow
+        -Gray
+        -Darkgray
+        -Blue
+        -Green
+        -Cyan
+        -Red
+        -Magenta
+        -Yellow
+        -White
+        -Foreground (default)
+
+    Command structure:
+        Write-ColorText [-color] Text [[-color] [text]...]
+
+            (use quotes if you want text with spaces)
+
+    .Parameter Text
+      The text to write; use quotes to include spaces
+    .Parameter -Color
+      The color in which to write it. Can be -Black, -DarkBlue, -DarkGreen, -DarkCyan, -DarkRed, -DarkMagenta, -DarkYellow, -Gray, -Darkgray, -Blue, -Green, -Cyan, -Red, -Magenta, -Yellow, -White, -Foreground
+    .Example
+      Write-ColorText "This is normal text"
+
+      Outputs "This is normal text" in the current foreground color
+    .Example
+      Write-ColorText Normal -Red Red -White White -Blue Blue -ForeGround Normal
+
+      Outputs "Normal" in the current foreground color, plus each color word in that color
+  #>
+
+    $allColors = ("-Black",   "-DarkBlue","-DarkGreen","-DarkCyan","-DarkRed","-DarkMagenta","-DarkYellow","-Gray",
+                  "-Darkgray","-Blue",    "-Green",    "-Cyan",    "-Red",    "-Magenta",    "-Yellow",    "-White",
+                   "-Foreground")
+    
+    $color = "Foreground"
+    $nonewline = $false
+
+    foreach($arg in $args)
+    {
+        if ($arg -eq "-nonewline")
+        { 
+            $nonewline = $true 
+        }
+        elseif ($allColors -contains $arg)
+        {
+            $color = $arg.substring(1)
+        }
+        else
+        {
+            if ($color -eq "Foreground")
+            {
+                Write-Host $arg -nonewline
+            }
+            else
+            {
+                Write-Host $arg -foreground $color -nonewline
+            }
+        }
+    }
+
+    Write-Host -nonewline:$nonewline
+}
+
+Function Write-Flag {
+    <# 
+    .SYNOPSIS 
+        Date- or Text-Box Marker 
+ 
+    .DESCRIPTION 
+        Writes a "bright" marker - either with the current time/date or with custom text. Useful to call attention to a specific item on the screen (I use it in scripts to call attention to something, usually completion or someting I might otherwise miss). 
+ 
+    .PARAMETER  Text 
+        Type in the text you want here. An empty string will use the current time/date
+ 
+    .PARAMETER  BW
+        A switch to remove any color decoration (will just use current fore- and back-ground colors). Also passes an object for use in other functions/cmdlets.
+
+    .PARAMETER  Fore
+        Foreground color
+
+    .PARAMETER  Back
+        Background color
+
+    .EXAMPLE 
+        PS C:\> Write-Flag
+
+        Outputs a screen-wide box with the current time/date
+         
+    .EXAMPLE 
+        PS C:\> Write-Flag "This is complete"
+
+        Outputs a screen-wide box with the message "This is complete"
+     
+    .EXAMPLE 
+        PS C:\> Write-Flag "Done!" -bw
+
+        Outputs a screen-wide box with the message "Done!" in the current foreground and background colors
+
+    .INPUTS 
+        System.String, System-ConsoleColor
+    #> 
+
+    param (
+        [Parameter(Position=0, Mandatory=$false)] 
+        [System.String] 
+        $Text = (Get-Date).ToString("dddd -- MMMM d, yyyy -- h:mmtt"),
+        [switch] $BW = $false,
+        [Parameter(Position=2,Mandatory=$False)]
+        [System.ConsoleColor]
+        $Fore = (DefaultHeadingForeground),
+        [Parameter(Position=3,Mandatory=$False)]
+        [System.ConsoleColor]
+        $Back = (DefaultHeadingBackground)
+    )
+    $retval = "`n"
+    $retval += Write-Repeating
+    $retval += "`n"
+    $retval += (write-center $text)
+    $retval += "`n"
+    $retval += Write-Repeating
+    $retval += "`n"
+    if ($bw) { 
+        $retval
+    } else {
+        Write-Host $retval -ForegroundColor $Fore -BackgroundColor $Back
+    }
+}
+
+new-alias -Name flag -Value Write-Flag -Description "Date- or Text-box marker" -force
+
 function Out-Speech { 
     <# 
     .SYNOPSIS 
@@ -344,7 +499,7 @@ function Out-Speech {
     .DESCRIPTION 
         This is a Text to Speech Function made in powershell. 
  
-    .PARAMETER  Message 
+    .PARAMETER  Text 
         Type in the message you want here. 
  
     .EXAMPLE 
@@ -363,7 +518,7 @@ function Out-Speech {
     param( 
         [Parameter(Position=0, Mandatory=$true,ValueFromPipeline=$true)] 
         [System.String] 
-        $Message, 
+        $Text, 
         [Parameter(Position=1)] 
         [System.String] 
         [validateset('Male','Female')] 
@@ -384,7 +539,7 @@ function Out-Speech {
             $voice.SelectVoiceByHints($Gender) 
              
             Write-Verbose -Message "Start Speaking" 
-            $voice.Speak($message) | Out-Null 
+            $voice.Speak($Text) | Out-Null 
     } 
     end { 
     } 
