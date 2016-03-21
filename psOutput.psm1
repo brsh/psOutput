@@ -41,12 +41,10 @@ function Write-Heading {
 
         Writes "Testing the Function------..." with White text on Red background
     #> 
-
-    #Make a consisten heading
-    #Shades the background of the header to the width of the screen
+    [CmdletBinding()]
 	param( 
-        [Parameter(Position=0,Mandatory=$False)] 
-        [System.String] 
+        [Parameter(Position=0,Mandatory=$False,ValueFromPipeline=$true)] 
+        [Object] 
         $Text = (Get-Date).ToLongDateString() + " - " + (Get-Date).ToLongTimeString(),
         [Parameter(Position=1,Mandatory=$False)]
         [Char]
@@ -58,12 +56,25 @@ function Write-Heading {
         [System.ConsoleColor]
         $Back = (DefaultHeadingBackground)
 		)
-	
-    $Width = (($Host.UI.RawUI.WindowSize.Width) - $Text.Length - 1)
-
-    $Text += Write-Repeating -Character $Char -Width $Width
-
-    Write-Host $Text -ForegroundColor $Fore -BackgroundColor $Back
+    BEGIN {
+        $retval = ""
+        $ScreenWidth = ($Host.UI.RawUI.WindowSize.Width - 1)
+    }
+    PROCESS {
+        foreach ($line in $text) {
+            $hold = WrapTheLines $line $ScreenWidth
+            #And pad the text on the right for the background color change
+            foreach ($newline in $hold.split("`n")) {
+                $retval += $newline.PadRight($ScreenWidth, $Char)
+                $retval += "`n"
+            }
+        }
+    }
+    END {
+        foreach ($line in $retval.TrimEnd("`n").split("`n")) {
+             Write-Host $line -ForegroundColor $Fore -BackgroundColor $Back
+        }
+    }
 }
 
 function Write-ItemName {
@@ -208,29 +219,34 @@ function Write-Center {
     .EXAMPLE 
         PS C:\> write-center -Message "Testing the function" -char -
 #> 
-
-    #Center text on the console line
-    #Can use spaces (default) or other character as the spacer
+    [CmdletBinding()]
     param(
-        [Parameter(Position=0,Mandatory=$True)]
-        [String]
-        $Text,
+        [Parameter(Position=0,Mandatory=$True,ValueFromPipeline=$true)]
+        [object] $Text,
         [Parameter(Position=1,Mandatory=$False)]
-        [Char]
-        $Char = " "
+        [Char] $Char = " "
     )
-    #Get the width of the console minus the text and divide in half to get the starting spacer
-    $Width = [Math]::Floor(((($Host.UI.RawUI.WindowSize.Width) - 1) - ($Text.Length)) / 2 )
-    #Temp var to hold the output
-    $retval = (Write-Repeating $Char.ToString() $Width)
-    #Make sure we have enough characters to fill the line (add some if necessary)
-    if ( ( ( ($retval.length) * 2) + ($Text.Length) ) -lt (($Host.UI.RawUI.WindowSize.Width) - 1)) {
-        $retval += $Text + (Write-Repeating $Char.ToString() ($Width + 1))
+    BEGIN { 
+        $ScreenWidth = ($Host.UI.RawUI.WindowSize.Width - 1)
+        $retval = "" 
     }
-    else {
-        $retval += $Text + $retval
+    PROCESS {
+        foreach ($line in $text) {
+            $hold = WrapTheLines $line $ScreenWidth
+            #And pad the text on the left and right for the background color change
+            foreach ($newline in $hold.split("`n")) {
+                $retval += $newline.PadRight((($ScreenWidth / 2) + ($newline.Length / 2)), $char).PadLeft(($ScreenWidth - 1), $char)
+                $retval += "`n"
+            }
+        }
     }
-    $retval    
+    END {
+        try { 
+            #return what we put together and remove any extra, trailing newline
+            #could be empty, so try it, but do nothing if it errors.
+            return $retval.TrimEnd("`n")
+        } catch {}
+    }
 }
 
 new-alias -Name center -Value Write-Center -description "Center text on the screen" -force
@@ -256,22 +272,37 @@ function Write-Right {
         PS C:\> write-right -Message "Testing the function" -char -
 #> 
 
-    #Right justify text on the console line
-    #Can use spaces (default) or other character as the spacer)
+    #Cmdlet binding for all the reasons
+    [CmdletBinding()]
     param(
-        [Parameter(Position=0,Mandatory=$True)]
-        [String]
-        $Text,
+        [Parameter(Position=0,Mandatory=$true,ValueFromPipeline=$true)]
+        [object]$Text,
         [Parameter(Position=1,Mandatory=$False)]
-        [Char]
-        $Char = " "
+        [Char] $Char = " "
     )
-    #get the width of the console minus the text
-    $Width = (($Host.UI.RawUI.WindowSize.Width) - ($Text.Length) - 1)
+    BEGIN { 
+        #Lock down the screen size for use later
+        $ScreenWidth = ($Host.UI.RawUI.WindowSize.Width - 1)
+        $retval = ""
+    }
+    PROCESS {
 
-    $retval = (Write-Repeating $Char.ToString() $Width) + $Text
-
-    $retval    
+        foreach ($line in $text) {
+            $hold = WrapTheLines $line $ScreenWidth
+            #And pad the text on the left
+            foreach ($newline in $hold.split("`n")) {
+                $retval += $newline.ToString().PadLeft(($ScreenWidth), $char)
+                $retval += "`n"
+            }
+        }
+    }
+    END {
+        try { 
+            #return what we put together and remove any extra, trailing newline
+            #could be empty, so try it, but do nothing if it errors.
+            return $retval.TrimEnd("`n")
+        } catch {}
+    }
 }
 
 new-alias -Name right -Value Write-Right -description "Right-justify text" -force
@@ -475,13 +506,11 @@ Function Write-Flag {
         [System.ConsoleColor]
         $Back = (DefaultHeadingBackground)
     )
-    $retval = "`n"
-    $retval += Write-Repeating
+    $retval = Write-Repeating
     $retval += "`n"
     $retval += (write-center $text)
     $retval += "`n"
     $retval += Write-Repeating
-    $retval += "`n"
     if ($bw) { 
         $retval
     } else {
@@ -490,6 +519,75 @@ Function Write-Flag {
 }
 
 new-alias -Name flag -Value Write-Flag -Description "Date- or Text-box marker" -force
+
+function Write-Box {
+    <# 
+    .SYNOPSIS 
+        Date- or Text-Box 
+ 
+    .DESCRIPTION 
+        Writes a box - either with the current time/date or with custom text. Useful to call attention to a specific item on the screen. By default, the output is an Object that can be piped to other cmdlets or functions (like my write-right function). You can also specify fore- and back-ground colors, but then the output is text and completely non-pipe-able.
+ 
+    .PARAMETER  Text 
+        Type in the text you want here. An empty string will use the current time/date
+
+    .PARAMETER  Fore
+        Foreground color
+
+    .PARAMETER  Back
+        Background color
+
+    .EXAMPLE 
+        PS C:\> Write-Box
+
+        Outputs (as an OBJECT) a text-wide box with the current time/date
+         
+    .EXAMPLE 
+        PS C:\> Write-Box "This is complete"
+
+        Outputs (as an OBJECT) a text-wide box with the message "This is complete"
+     
+    .EXAMPLE 
+        PS C:\> Write-Box "Done!" -fore red -back blue
+
+        Outputs (as TEXT) a text-wide box with the message "Done!" as red text on blue background
+
+    .INPUTS 
+        System.String, System-ConsoleColor
+    #> 
+    param (
+        [Parameter(Position=0, Mandatory=$false)] 
+        [System.String] 
+        $Text = (Get-Date).ToString("dddd -- MMMM d, yyyy -- h:mmtt"),
+        [Parameter(Position=2,Mandatory=$False)]
+        [System.ConsoleColor]
+        $Fore = (DefaultHeadingForeground),
+        [Parameter(Position=3,Mandatory=$False)]
+        [System.ConsoleColor]
+        $Back = (DefaultHeadingBackground)
+    )
+    #See https://en.wikipedia.org/wiki/Box_Drawing for box shapes
+    $length = ($Text.Length + 2)
+    $retval = "┌"
+    $retval += Write-Repeating -width $length
+    $retval += "┐"
+    $retval += "`n"
+    $retval += "│ $text │"
+    $retval += "`n"
+    $retval += "└"
+    $retval += Write-Repeating -width $length
+    $retval += "┘"
+    #if ($bw) { 
+    write-verbose $fore
+    if (($Fore -eq (DefaultHeadingForeground)) -and ($Back = (DefaultHeadingBackground))) {
+        $retval
+    } else {
+        Write-Host $retval -ForegroundColor $Fore -BackgroundColor $Back
+    }
+
+}
+
+new-alias -Name box -Value Write-Box -Description "Date- or Text-box marker" -force
 
 function Out-Speech { 
     <# 
