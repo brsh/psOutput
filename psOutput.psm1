@@ -235,7 +235,7 @@ function Write-Center {
             $hold = WrapTheLines $line $ScreenWidth
             #And pad the text on the left and right for the background color change
             foreach ($newline in $hold.split("`n")) {
-                $retval += $newline.PadRight((($ScreenWidth / 2) + ($newline.Length / 2)), $char).PadLeft(($ScreenWidth - 1), $char)
+                $retval += $newline.PadRight((($ScreenWidth / 2) + ($newline.Length / 2)), $char).PadLeft($ScreenWidth, $char)
                 $retval += "`n"
             }
         }
