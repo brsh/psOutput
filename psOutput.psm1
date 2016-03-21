@@ -466,9 +466,6 @@ Function Write-Flag {
     .PARAMETER  Text 
         Type in the text you want here. An empty string will use the current time/date
  
-    .PARAMETER  BW
-        A switch to remove any color decoration (will just use current fore- and back-ground colors). Also passes an object for use in other functions/cmdlets.
-
     .PARAMETER  Fore
         Foreground color
 
@@ -498,11 +495,10 @@ Function Write-Flag {
         [Parameter(Position=0, Mandatory=$false)] 
         [System.String] 
         $Text = (Get-Date).ToString("dddd -- MMMM d, yyyy -- h:mmtt"),
-        [switch] $BW = $false,
-        [Parameter(Position=2,Mandatory=$False)]
+        [Parameter(Position=1,Mandatory=$False)]
         [System.ConsoleColor]
         $Fore = (DefaultHeadingForeground),
-        [Parameter(Position=3,Mandatory=$False)]
+        [Parameter(Position=2,Mandatory=$False)]
         [System.ConsoleColor]
         $Back = (DefaultHeadingBackground)
     )
@@ -511,7 +507,7 @@ Function Write-Flag {
     $retval += (write-center $text)
     $retval += "`n"
     $retval += Write-Repeating
-    if ($bw) { 
+    if (($Fore -eq (DefaultHeadingForeground)) -and ($Back = (DefaultHeadingBackground))) {
         $retval
     } else {
         Write-Host $retval -ForegroundColor $Fore -BackgroundColor $Back
@@ -577,8 +573,6 @@ function Write-Box {
     $retval += "└"
     $retval += Write-Repeating -width $length
     $retval += "┘"
-    #if ($bw) { 
-    write-verbose $fore
     if (($Fore -eq (DefaultHeadingForeground)) -and ($Back = (DefaultHeadingBackground))) {
         $retval
     } else {
