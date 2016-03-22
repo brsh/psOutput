@@ -746,8 +746,8 @@ Function Convert-NameToAddress($addr) {
     [system.net.dns]::GetHostByName($addr)
 }
 
-New-Alias -name "n2a" -value Get-NameToAddress -Description "Get IP Address from DNS by Host Name" -Force
-New-Alias -name "a2n" -value Get-AddressToName -Description "Get Host Name from DNS by IP Address" -Force
+New-Alias -name "n2a" -value Convert-NameToAddress -Description "Get IP Address from DNS by Host Name" -Force
+New-Alias -name "a2n" -value Convert-AddressToName -Description "Get Host Name from DNS by IP Address" -Force
 
 function ConvertFrom-RomanNumeral {
   <#
