@@ -692,10 +692,180 @@ function Format-Color([hashtable] $Colors = @{}, [switch] $SimpleMatch) {
 
 New-Alias -Name clr -value Format-Color -Description "Re-color output text" -Force
 
+############# Conversions ###############
+
+function ConvertFrom-SID
+ {
+  param([string]$SID="S-1-0-0")
+  $objSID = New-Object System.Security.Principal.SecurityIdentifier($SID)
+  $objUser = $objSID.Translate([System.Security.Principal.NTAccount])
+  Return $objUser.Value
+ }
+
+ function ConvertTo-SID
+ {
+  param([string]$ID="Null SID")
+  $objID = New-Object System.Security.Principal.NTAccount($ID)
+  $objSID = $objID.Translate([System.Security.Principal.SecurityIdentifier])
+  Return $objSID.Value
+ }
+
+new-alias -name FromSID -value ConvertFrom-SID -Description "Get UserName from SID" -Force
+new-alias -name ToSID -value ConvertTo-SID -Description "Get SID from UserName" -Force
+
+Function ConvertTo-URLEncode([string]$InText="You did not enter any text!") {
+    [System.Reflection.Assembly]::LoadWithPartialName("System.web") | out-null
+    [System.Web.HttpUtility]::UrlEncode($InText)
+}
+
+Function ConvertFrom-URLEncode([string]$InText="You+did+not+enter+any+text!") {
+    [System.Reflection.Assembly]::LoadWithPartialName("System.web") | out-null
+    [System.Web.HttpUtility]::UrlDecode($InText)
+}
+
+New-Alias -name "URLEncode" -Value ConvertTo-URLEncode -Description "URL encode a string" -Force
+New-Alias -name "URLDecode" -Value ConvertFrom-URLEncode -Description "URL decode a string" -Force
+
+Function ConvertTo-Fahrenheit([decimal]$celsius) {
+    $((1.8 * $celsius) + 32 )
+} 
+
+Function ConvertTo-Celsius($fahrenheit) {
+    $( (($fahrenheit - 32)/9)*5 )
+}
+
+New-Alias -name "ToF" -Value ConvertTo-Fahrenheit -Description "Convert degrees C to F" -Force
+New-Alias -name "ToC" -Value ConvertTo-Celsius -Description "Convert degrees F to C" -Force
+
+
+Function Convert-AddressToName($addr) {
+    [system.net.dns]::GetHostByAddress($addr)
+}
+
+Function Convert-NameToAddress($addr) {
+    [system.net.dns]::GetHostByName($addr)
+}
+
+New-Alias -name "n2a" -value Get-NameToAddress -Description "Get IP Address from DNS by Host Name" -Force
+New-Alias -name "a2n" -value Get-AddressToName -Description "Get Host Name from DNS by IP Address" -Force
+
+function ConvertFrom-RomanNumeral {
+  <#
+    .SYNOPSIS
+        Converts a Roman numeral to a number.
+    .DESCRIPTION
+        Converts a Roman numeral - in the range of I..MMMCMXCIX - to a number. Found at https://stackoverflow.com/questions/267399/how-do-you-match-only-valid-roman-numerals-with-a-regular-expression
+    .EXAMPLE
+        ConvertFrom-RomanNumeral -Numeral MMXIV
+    .EXAMPLE
+        "MMXIV" | ConvertFrom-RomanNumeral
+  #>
+    [CmdletBinding()]
+    [OutputType([int])]
+    Param (
+        [Parameter(Mandatory=$true,
+                   HelpMessage="Enter a roman numeral in the range I..MMMCMXCIX",
+                   ValueFromPipeline=$true,
+                   Position=0)]
+        [ValidatePattern("^M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$")]
+        [string] $Numeral
+    )
+    Begin {
+        $RomanToDecimal = [ordered]@{
+            M  = 1000
+            CM =  900
+            D  =  500
+            CD =  400
+            C  =  100
+            XC =   90
+            L  =   50
+            X  =   10
+            IX =    9
+            V  =    5
+            IV =    4
+            I  =    1
+        }
+    }
+    Process {
+        $roman = $Numeral + " "
+        $value = 0
+
+        do {
+            foreach ($key in $RomanToDecimal.Keys) {
+                if ($key.Length -eq 1) {
+                    if ($key -match $roman.Substring(0,1)) {
+                        $value += $RomanToDecimal.$key
+                        $roman  = $roman.Substring(1)
+                        break
+                    }
+                }
+                else {
+                    if ($key -match $roman.Substring(0,2)) {
+                        $value += $RomanToDecimal.$key
+                        $roman  = $roman.Substring(2)
+                        break
+                    }
+                }
+            }
+        } until ($roman -eq " ")
+        $value
+    }
+    End {
+    }
+}
+
+New-Alias -name "FromRoman" -value ConvertFrom-RomanNumeral -Description "Convert from a roman numeral" -Force
+
+function ConvertTo-RomanNumeral {
+  <#
+    .SYNOPSIS
+        Converts a number to a Roman numeral.
+    .DESCRIPTION
+        Converts a number - in the range of 1 to 3,999 - to a Roman numeral. Found at https://stackoverflow.com/questions/267399/how-do-you-match-only-valid-roman-numerals-with-a-regular-expression
+    .EXAMPLE
+        ConvertTo-RomanNumeral -Number (Get-Date).Year
+    .EXAMPLE
+        (Get-Date).Year | ConvertTo-RomanNumeral
+  #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    Param (
+        [Parameter(Mandatory=$true,
+                   HelpMessage="Enter an integer in the range 1 to 3,999",
+                   ValueFromPipeline=$true,
+                   Position=0)]
+        [ValidateRange(1,4999)] [int] $Number
+    )
+    Begin {
+        $DecimalToRoman = @{
+            Ones      = "","I","II","III","IV","V","VI","VII","VIII","IX";
+            Tens      = "","X","XX","XXX","XL","L","LX","LXX","LXXX","XC";
+            Hundreds  = "","C","CC","CCC","CD","D","DC","DCC","DCCC","CM";
+            Thousands = "","M","MM","MMM","MMMM"
+        }
+        $column = @{Thousands = 0; Hundreds = 1; Tens = 2; Ones = 3}
+    }
+    Process {
+        [int[]]$digits = $Number.ToString().PadLeft(4,"0").ToCharArray() | ForEach-Object { [Char]::GetNumericValue($_) }
+        $RomanNumeral  = ""
+        $RomanNumeral += $DecimalToRoman.Thousands[$digits[$column.Thousands]]
+        $RomanNumeral += $DecimalToRoman.Hundreds[$digits[$column.Hundreds]]
+        $RomanNumeral += $DecimalToRoman.Tens[$digits[$column.Tens]]
+        $RomanNumeral += $DecimalToRoman.Ones[$digits[$column.Ones]]
+
+        $RomanNumeral
+    }
+    End {  
+    }
+}
+
+New-Alias -name "ToRoman" -value ConvertTo-RomanNumeral -Description "Convert to a roman numeral" -Force
+
 
 Export-ModuleMember -function Write-* 
 Export-ModuleMember -function Out-* 
 Export-ModuleMember -function Format-* 
+Export-ModuleMember -function Convert* 
 Export-ModuleMember -alias *
 
 ###################################################
