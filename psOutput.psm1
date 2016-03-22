@@ -69,12 +69,11 @@ function Write-Heading {
                 $retval += "`n"
             }
         }
-    }
-    END {
         foreach ($line in $retval.TrimEnd("`n").split("`n")) {
              Write-Host $line -ForegroundColor $Fore -BackgroundColor $Back
         }
     }
+    END { }
 }
 
 function Write-ItemName {
@@ -239,14 +238,13 @@ function Write-Center {
                 $retval += "`n"
             }
         }
-    }
-    END {
         try { 
             #return what we put together and remove any extra, trailing newline
             #could be empty, so try it, but do nothing if it errors.
             return $retval.TrimEnd("`n")
         } catch {}
     }
+    END { }
 }
 
 new-alias -Name center -Value Write-Center -description "Center text on the screen" -force
@@ -295,14 +293,13 @@ function Write-Right {
                 $retval += "`n"
             }
         }
-    }
-    END {
         try { 
             #return what we put together and remove any extra, trailing newline
             #could be empty, so try it, but do nothing if it errors.
             return $retval.TrimEnd("`n")
         } catch {}
     }
+    END { }
 }
 
 new-alias -Name right -Value Write-Right -description "Right-justify text" -force
