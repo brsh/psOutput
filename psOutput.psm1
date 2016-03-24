@@ -19,7 +19,7 @@ Get-ChildItem $ScriptPath/private -Recurse -Filter "*.ps1" -File | Foreach {
 function Write-Heading {
     <# 
     .SYNOPSIS 
-        Consistent Header output formatting. 
+        Consistent Header output formatting
  
     .DESCRIPTION 
         Writes a "header" to default output (screen). Colors the text and background (full screen width) to highlight the information.
@@ -76,10 +76,12 @@ function Write-Heading {
     END { }
 }
 
+new-alias -Name heading -Value Write-Heading -Description "Consistent Header output formatting" -force
+
 function Write-ItemName {
     <# 
     .SYNOPSIS 
-        Consistent Item Naming output formatting. 
+        Consistent Item Naming output formatting
  
     .DESCRIPTION 
         Writes a consistent "report item title" to default output (screen), coloring the text and providing x number of tabs (default is 1) without a new line. Meant to be used with Write-Item
@@ -120,7 +122,7 @@ function Write-ItemName {
 function Write-Item {
     <# 
     .SYNOPSIS 
-        Consistent Item output formatting. 
+        Consistent Item output formatting
          
     .DESCRIPTION 
         Writes a consistent "report item" to default output (screen). Meant to be used with Write-ItemName
@@ -462,7 +464,10 @@ Function Write-Flag {
  
     .PARAMETER  Text 
         Type in the text you want here. An empty string will use the current time/date
- 
+
+    .PARAMETER  Char 
+        The spacer character (defaults to space).
+
     .PARAMETER  Fore
         Foreground color
 
@@ -489,25 +494,38 @@ Function Write-Flag {
     #> 
 
     param (
-        [Parameter(Position=0, Mandatory=$false)] 
+        [Parameter(Position=0, Mandatory=$false, ValueFromPipeline=$True)] 
         [System.String] 
         $Text = (Get-Date).ToString("dddd -- MMMM d, yyyy -- h:mmtt"),
         [Parameter(Position=1,Mandatory=$False)]
+        [Char] $Char = " ",
+        [Parameter(Position=2,Mandatory=$False)]
         [System.ConsoleColor]
         $Fore = (DefaultHeadingForeground),
-        [Parameter(Position=2,Mandatory=$False)]
+        [Parameter(Position=3,Mandatory=$False)]
         [System.ConsoleColor]
         $Back = (DefaultHeadingBackground)
     )
-    $retval = Write-Repeating
-    $retval += "`n"
-    $retval += (write-center $text)
-    $retval += "`n"
-    $retval += Write-Repeating
-    if (($Fore -eq (DefaultHeadingForeground)) -and ($Back = (DefaultHeadingBackground))) {
-        $retval
-    } else {
-        Write-Host $retval -ForegroundColor $Fore -BackgroundColor $Back
+    BEGIN { 
+        #See the Write-Box comments for the diatribe on why I abuse the correct usage of Advanced Functions :(
+        #Write the top line/separator
+        $retval = Write-Repeating
+        $retval += "`n"
+    }
+    PROCESS {
+        #Write each line (center takes care of lines longer than screenwidth)
+        $retval += (write-center $text -char $Char)
+        $retval += "`n"
+    }
+    END { 
+        #Add in the closing line/separator
+        $retval += Write-Repeating
+        #And output - either as an object or as text with formatting
+        if (($Fore -eq (DefaultHeadingForeground)) -and ($Back = (DefaultHeadingBackground))) {
+            $retval
+        } else {
+            Write-Host $retval -ForegroundColor $Fore -BackgroundColor $Back
+        }
     }
 }
 
@@ -523,6 +541,9 @@ function Write-Box {
  
     .PARAMETER  Text 
         Type in the text you want here. An empty string will use the current time/date
+
+    .PARAMETER  Char 
+        The spacer character (defaults to space).
 
     .PARAMETER  Fore
         Foreground color
@@ -548,10 +569,13 @@ function Write-Box {
     .INPUTS 
         System.String, System-ConsoleColor
     #> 
+    #[CmdletBinding()]
     param (
-        [Parameter(Position=0, Mandatory=$false)] 
+        [Parameter(Position=0, Mandatory=$false, ValueFromPipeline=$true)] 
         [System.String] 
         $Text = (Get-Date).ToString("dddd -- MMMM d, yyyy -- h:mmtt"),
+        [Parameter(Position=1,Mandatory=$False)]
+        [Char] $Char = " ",
         [Parameter(Position=2,Mandatory=$False)]
         [System.ConsoleColor]
         $Fore = (DefaultHeadingForeground),
@@ -559,23 +583,64 @@ function Write-Box {
         [System.ConsoleColor]
         $Back = (DefaultHeadingBackground)
     )
-    #See https://en.wikipedia.org/wiki/Box_Drawing for box shapes
-    $length = ($Text.Length + 2)
-    $retval = "┌"
-    $retval += Write-Repeating -width $length
-    $retval += "┐"
-    $retval += "`n"
-    $retval += "│ $text │"
-    $retval += "`n"
-    $retval += "└"
-    $retval += Write-Repeating -width $length
-    $retval += "┘"
-    if (($Fore -eq (DefaultHeadingForeground)) -and ($Back = (DefaultHeadingBackground))) {
-        $retval
-    } else {
-        Write-Host $retval -ForegroundColor $Fore -BackgroundColor $Back
+    BEGIN { 
+        $longest = 0 
+        #Lock down the screen size for use later
+        $ScreenWidth = ($Host.UI.RawUI.WindowSize.Width - 5)
+        $retval = ""
+        $AllTheLines = @()
     }
-
+    PROCESS {
+        #I want the box around the whole thing - not lots of little boxes
+        #So, I need to process both command line parameters as well as the pipeline
+        #cmd-line params are easy. Pipeline is easy. Both together ... not so much
+        #I've looked around; I've tried various things. 
+        #Nothing works as well as abusing the correct form of advanced functions.
+        #I'm sorry - using $input in PROCESS works for pipeline, but breaks cmd-line params
+        #The "best" option I could find was using process to build a "total"
+        #and breaking it out in END. If someone has a better way, please let me know!!
+        foreach ($line in $Text) {
+            #First get the length to see if it's the longest line
+            if ($line.ToString().Length -gt $longest) { $longest = $line.ToString().Length }
+            #Then add the line to the combination var
+            $AllTheLines += $line
+        }    
+    }
+    END {
+        #Check if the longest line is bigger than the screen - and limit it as necessary
+        if ($longest -gt $ScreenWidth) { $longest = $ScreenWidth }
+        #Now, draw the top of the box
+        #See https://en.wikipedia.org/wiki/Box_Drawing for box shapes
+        $retval = "┌"
+        $retval += Write-Repeating -width ($longest + 2)
+        $retval += "┐"
+        $retval += "`n"
+        #And then process each line in the collection for output
+        foreach ($line in $AllTheLines) {
+            #BUT, break up any line longer than the screenwidth
+            $hold = WrapTheLines $line $ScreenWidth
+            #And then actually process the lines for output
+            foreach ($line in $hold.ToString().Split("`n")) {
+                #Box shape is a bar, a space, the text (padded to "longest" width, a space, and a bar
+                $retval += "│"
+                $retval += $Char
+                $retval += $line.ToString().PadRight($longest, $Char)
+                $retval += $Char
+                $retval += "│"
+                $retval += "`n"
+            }
+        }
+        #Now draw the bottom of the box
+        $retval += "└"
+        $retval += Write-Repeating -width ($longest + 2)
+        $retval += "┘"
+        #And output - either as an object or as text with formatting
+        if (($Fore -eq (DefaultHeadingForeground)) -and ($Back = (DefaultHeadingBackground))) {
+            $retval
+        } else {
+            Write-Host $retval -ForegroundColor $Fore -BackgroundColor $Back
+        }
+    }
 }
 
 new-alias -Name box -Value Write-Box -Description "Date- or Text-box marker" -force
@@ -693,6 +758,14 @@ New-Alias -Name clr -value Format-Color -Description "Re-color output text" -For
 
 function ConvertFrom-SID
  {
+   <#
+    .SYNOPSIS
+        Security ID to Username
+    .DESCRIPTION
+        Gets the username for a specified system SID
+    .EXAMPLE
+        ConvertFrom-sid S-1-5-21-4079184686-3691728653-2528636808-500
+  #>
   param([string]$SID="S-1-0-0")
   $objSID = New-Object System.Security.Principal.SecurityIdentifier($SID)
   $objUser = $objSID.Translate([System.Security.Principal.NTAccount])
@@ -701,6 +774,14 @@ function ConvertFrom-SID
 
  function ConvertTo-SID
  {
+   <#
+    .SYNOPSIS
+        Username to Security ID
+    .DESCRIPTION
+        Gets the system SID for a specified username
+    .EXAMPLE
+        ConvertTo-SID administrator
+  #>
   param([string]$ID="Null SID")
   $objID = New-Object System.Security.Principal.NTAccount($ID)
   $objSID = $objID.Translate([System.Security.Principal.SecurityIdentifier])
@@ -711,11 +792,27 @@ new-alias -name FromSID -value ConvertFrom-SID -Description "Get UserName from S
 new-alias -name ToSID -value ConvertTo-SID -Description "Get SID from UserName" -Force
 
 Function ConvertTo-URLEncode([string]$InText="You did not enter any text!") {
+  <#
+    .SYNOPSIS
+        URL EN-code a string
+    .DESCRIPTION
+        Replaces "special characters" with their URL-clean codes
+    .EXAMPLE
+        ConvertTo-URLEncode "This is a string;+^"
+  #>
     [System.Reflection.Assembly]::LoadWithPartialName("System.web") | out-null
     [System.Web.HttpUtility]::UrlEncode($InText)
 }
 
 Function ConvertFrom-URLEncode([string]$InText="You+did+not+enter+any+text!") {
+  <#
+    .SYNOPSIS
+        URL DE-code a string
+    .DESCRIPTION
+        Replaces URL-clean codes with the ASCII "special characters"
+    .EXAMPLE
+        ConvertFrom-URLEncode "This%20is%20a%20string%3b%2b%5e"
+  #>
     [System.Reflection.Assembly]::LoadWithPartialName("System.web") | out-null
     [System.Web.HttpUtility]::UrlDecode($InText)
 }
@@ -724,10 +821,26 @@ New-Alias -name "URLEncode" -Value ConvertTo-URLEncode -Description "URL encode 
 New-Alias -name "URLDecode" -Value ConvertFrom-URLEncode -Description "URL decode a string" -Force
 
 Function ConvertTo-Fahrenheit([decimal]$celsius) {
+  <#
+    .SYNOPSIS
+        Degrees C to F
+    .DESCRIPTION
+        Simple math to convert temperature
+    .EXAMPLE
+        ConvertTo-Fahrenheit 100
+  #>
     $((1.8 * $celsius) + 32 )
 } 
 
 Function ConvertTo-Celsius($fahrenheit) {
+  <#
+    .SYNOPSIS
+        Degrees F to C
+    .DESCRIPTION
+        Simple math to convert temperature
+    .EXAMPLE
+        ConvertTo-Celsius 32
+  #>
     $( (($fahrenheit - 32)/9)*5 )
 }
 
@@ -736,10 +849,26 @@ New-Alias -name "ToC" -Value ConvertTo-Celsius -Description "Convert degrees F t
 
 
 Function Convert-AddressToName($addr) {
+  <#
+    .SYNOPSIS
+        DNS ip to name lookup
+    .DESCRIPTION
+        Uses DNS to get the name(s) for a specific ip address
+    .EXAMPLE
+        Convert-AddressToName 127.0.0.1
+  #>
     [system.net.dns]::GetHostByAddress($addr)
 }
 
 Function Convert-NameToAddress($addr) {
+  <#
+    .SYNOPSIS
+        DNS name to ip lookup
+    .DESCRIPTION
+        Uses DNS to get the ip address(es) for a specific computername
+    .EXAMPLE
+        Convert-NameToAddress myVM
+  #>
     [system.net.dns]::GetHostByName($addr)
 }
 
@@ -749,7 +878,7 @@ New-Alias -name "a2n" -value Convert-AddressToName -Description "Get Host Name f
 function ConvertFrom-RomanNumeral {
   <#
     .SYNOPSIS
-        Converts a Roman numeral to a number.
+        Convert a Roman numeral to a number
     .DESCRIPTION
         Converts a Roman numeral - in the range of I..MMMCMXCIX - to a number. Found at https://stackoverflow.com/questions/267399/how-do-you-match-only-valid-roman-numerals-with-a-regular-expression
     .EXAMPLE
@@ -816,7 +945,7 @@ New-Alias -name "FromRoman" -value ConvertFrom-RomanNumeral -Description "Conver
 function ConvertTo-RomanNumeral {
   <#
     .SYNOPSIS
-        Converts a number to a Roman numeral.
+        Convert a number to a Roman numeral
     .DESCRIPTION
         Converts a number - in the range of 1 to 3,999 - to a Roman numeral. Found at https://stackoverflow.com/questions/267399/how-do-you-match-only-valid-roman-numerals-with-a-regular-expression
     .EXAMPLE
