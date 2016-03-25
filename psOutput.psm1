@@ -65,7 +65,7 @@ function Write-Heading {
             $hold = WrapTheLines $line $ScreenWidth
             #And pad the text on the right for the background color change
             foreach ($newline in $hold.split("`n")) {
-                $retval += $newline.PadRight($ScreenWidth, $Char)
+                $retval = $newline.PadRight($ScreenWidth, $Char)
                 $retval += "`n"
             }
         }
@@ -228,7 +228,7 @@ function Write-Center {
             $hold = WrapTheLines $line $ScreenWidth
             #And pad the text on the left and right for the background color change
             foreach ($newline in $hold.split("`n")) {
-                $retval += $newline.PadRight((($ScreenWidth / 2) + ($newline.Length / 2)), $char).PadLeft($ScreenWidth, $char)
+                $retval = $newline.PadRight((($ScreenWidth / 2) + ($newline.Length / 2)), $char).PadLeft($ScreenWidth, $char)
                 $retval += "`n"
             }
         }
@@ -281,7 +281,7 @@ function Write-Right {
             $hold = WrapTheLines $line $ScreenWidth
             #And pad the text on the left
             foreach ($newline in $hold.split("`n")) {
-                $retval += $newline.ToString().PadLeft(($ScreenWidth), $char)
+                $retval = $newline.ToString().PadLeft(($ScreenWidth), $char)
                 $retval += "`n"
             }
         }
