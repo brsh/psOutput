@@ -102,10 +102,6 @@ function Write-ItemName {
 
         Writes "Item:        This is an example."
     #> 
-  
-    #Writes an Item Name 
-    #Basically, the label ... think of it as a property or module name of an object
-    #Puts a colon and a certain number of tabs for column-ing
 	param( 
         [Parameter(Position=0)] 
         [System.String] 
@@ -173,10 +169,6 @@ function Write-Repeating {
 
         Writes "─────────..."
     #>
-
-    #Repeat some characts a certain number of times
-    #Defaults to the m-dash at full console width
-    #Example: x 6 would display xxxxxx
     param( 
         [Parameter(Position=0)] 
         [System.String] 
@@ -271,8 +263,6 @@ function Write-Right {
     .EXAMPLE 
         PS C:\> write-right -Message "Testing the function" -char -
 #> 
-
-    #Cmdlet binding for all the reasons
     [CmdletBinding()]
     param(
         [Parameter(Position=0,Mandatory=$true,ValueFromPipeline=$true)]
@@ -402,7 +392,7 @@ function Write-ColorText {
         -White
         -Foreground (default)
 
-    Command structure:
+      Command structure:
         Write-ColorText [-color] Text [[-color] [text]...]
 
             (use quotes if you want text with spaces)
@@ -492,7 +482,6 @@ Function Write-Flag {
     .INPUTS 
         System.String, System-ConsoleColor
     #> 
-
     param (
         [Parameter(Position=0, Mandatory=$false, ValueFromPipeline=$True)] 
         [System.String] 
@@ -569,7 +558,7 @@ function Write-Box {
     .INPUTS 
         System.String, System-ConsoleColor
     #> 
-    #[CmdletBinding()]
+    [CmdletBinding()]
     param (
         [Parameter(Position=0, Mandatory=$false, ValueFromPipeline=$true)] 
         [System.String] 
@@ -693,7 +682,7 @@ function Out-Speech {
             $voice.SelectVoiceByHints($Gender) 
              
             Write-Verbose -Message "Start Speaking" 
-            $voice.Speak($Text) | Out-Null 
+            [void]$voice.Speak($Text)
     } 
     end { 
     } 
@@ -710,6 +699,8 @@ function Format-Color([hashtable] $Colors = @{}, [switch] $SimpleMatch) {
         Parses the text imput (usually via pipeline) and changes the color of lines based on pattern matching. It can do a simple match (where the entire line matches) or a pattern match (where something keys the color change - like the word error). 
         
         You send patterns and colors in as a hash table - for example @{ 'error' = 'red'; 'info' = 'white' }
+
+        See http://www.bgreco.net/powershell/format-color/ for more info
          
     .PARAMETER  Colors 
         A hashtable of pattern and color - example: @{ '^Command' = 'white'; '^--' = 'white' }
@@ -732,11 +723,6 @@ function Format-Color([hashtable] $Colors = @{}, [switch] $SimpleMatch) {
 
         Takes the output of the get-content command and for any line that is ONLY the word error, colors that line red
 #> 
-
-    #Just a way to recolor some things that don't have color options
-    #can handle regex or simpler matching (like just * to recolor everything)
-    #from http://www.bgreco.net/powershell/format-color/
-    #pass it a hash table of the form @{'pattern1' = 'Color1'[; ...]}
 	$lines = ($input | Out-String) -replace "`r", "" -split "`n"
 	ForEach ($line in $lines) {
 		$color = ''
@@ -800,7 +786,7 @@ Function ConvertTo-URLEncode([string]$InText="You did not enter any text!") {
     .EXAMPLE
         ConvertTo-URLEncode "This is a string;+^"
   #>
-    [System.Reflection.Assembly]::LoadWithPartialName("System.web") | out-null
+    [void][System.Reflection.Assembly]::LoadWithPartialName("System.web")
     [System.Web.HttpUtility]::UrlEncode($InText)
 }
 
@@ -813,7 +799,7 @@ Function ConvertFrom-URLEncode([string]$InText="You+did+not+enter+any+text!") {
     .EXAMPLE
         ConvertFrom-URLEncode "This%20is%20a%20string%3b%2b%5e"
   #>
-    [System.Reflection.Assembly]::LoadWithPartialName("System.web") | out-null
+    [void][System.Reflection.Assembly]::LoadWithPartialName("System.web")
     [System.Web.HttpUtility]::UrlDecode($InText)
 }
 
@@ -986,6 +972,41 @@ function ConvertTo-RomanNumeral {
 }
 
 New-Alias -name "ToRoman" -value ConvertTo-RomanNumeral -Description "Convert to a roman numeral" -Force
+
+Function ConvertTo-Ordinal {
+  <#
+    .SYNOPSIS
+        Add a suffix to numeral
+    .DESCRIPTION
+        Adds the ordinal (??) suffix to a number. Handy for denoting the 1st, 2nd, or 3rd... etc. ... of something. Defaults to the current day.
+    .EXAMPLE
+        ConvertTo-Ordinal -Number (Get-Date).Day
+    .EXAMPLE
+        PS > "The $(ConvertTo-Ordinal (Get-Date).Day) day of the $(ConvertTo-Ordinal (Get-Date).ToString("%M")) month of the $(ConvertTo-Ordinal (Get-Date).Year) year"
+
+        The 25th day of the 3rd month of the 2016th year
+  #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    Param (
+        [Parameter(Mandatory=$false, ValueFromPipeline=$true, Position=0)]
+        [int]$Number = (Get-Date).Day
+    )
+    Switch ($Number % 100) {
+        11      { $suffix = "th" } 
+        12      { $suffix = "th" } 
+        13      { $suffix = "th" } 
+        default {
+            Switch ($Number % 10) {
+                1       { $suffix = "st" }
+                2       { $suffix = "nd" }
+                3       { $suffix = "rd" }
+                default { $suffix = "th"}
+            }
+        }
+    } 
+ "$Number$suffix"
+}
 
 
 Export-ModuleMember -function Write-* 
