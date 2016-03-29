@@ -197,10 +197,13 @@ function Write-Center {
         Takes the input string and pads it with characters (default is spaces) so the text fits in the approximate middle of the console.
  
     .PARAMETER  Text 
-        Type in the message you want here. 
+        Type in the message you want here
 
     .PARAMETER  Char 
-        The spacer character (defaults to space).
+        The spacer character (defaults to space)
+
+    .PARAMETER Width
+        How many characters wide the centerting should be; console-width is default
          
     .EXAMPLE 
         PS C:\> write-center -Message "Testing the function" 
@@ -213,10 +216,13 @@ function Write-Center {
         [Parameter(Position=0,Mandatory=$True,ValueFromPipeline=$true)]
         [object] $Text,
         [Parameter(Position=1,Mandatory=$False)]
-        [Char] $Char = " "
+        [Char] $Char = " ",
+        [Parameter(Position=2,Mandatory=$False)]
+        [alias("Width")]
+        [int] $ScreenWidth = $Host.UI.RawUI.WindowSize.Width
     )
     BEGIN { 
-        $ScreenWidth = ($Host.UI.RawUI.WindowSize.Width - 1)
+        $ScreenWidth -= 1
         $retval = "" 
     }
     PROCESS {
@@ -246,6 +252,9 @@ function Write-Right {
 
     .PARAMETER  Char 
         The spacer character (defaults to space).
+
+    .PARAMETER Width
+        How many characters wide the centerting should be; console-width is default
          
     .EXAMPLE 
         PS C:\> write-right -Message "Testing the function" 
@@ -258,11 +267,14 @@ function Write-Right {
         [Parameter(Position=0,Mandatory=$true,ValueFromPipeline=$true)]
         [object]$Text,
         [Parameter(Position=1,Mandatory=$False)]
-        [Char] $Char = " "
+        [Char] $Char = " ",
+        [Parameter(Position=2,Mandatory=$False)]
+        [alias("Width")]
+        [int] $ScreenWidth = $Host.UI.RawUI.WindowSize.Width
     )
     BEGIN { 
         #Lock down the screen size for use later
-        $ScreenWidth = ($Host.UI.RawUI.WindowSize.Width - 1)
+        $ScreenWidth -= 1
         $retval = ""
     }
     PROCESS {
@@ -491,7 +503,16 @@ function Write-Box {
         Type in the text you want here. An empty string will use the current time/date
 
     .PARAMETER  Char 
-        The spacer character (defaults to space).
+        The spacer character (defaults to space)
+
+    .PARAMETER Left
+        Left-Justifies the text in the box (default)
+
+    .PARAMETER Right
+        Right-Justifies the text in the box
+            
+    .PARAMETER Center
+        Center-Justifies the text in the box
 
     .EXAMPLE 
         PS C:\> Write-Box
@@ -506,19 +527,27 @@ function Write-Box {
     .INPUTS 
         System.String
     #> 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName="Default")]
     param (
         [Parameter(Position=0, Mandatory=$false, ValueFromPipeline=$true)] 
         [System.String] 
         $Text = (Get-Date).ToString("dddd -- MMMM d, yyyy -- h:mmtt"),
         [Parameter(Position=1,Mandatory=$False)]
-        [Char] $Char = " "
+        [Char] $Char = " ",
+        [Parameter(Mandatory=$false, ParameterSetName="Default")]
+        [Switch]
+        $Left,
+        [Parameter(Mandatory=$false, ParameterSetName="Right")]
+        [Switch]
+        $Right,
+        [Parameter(Mandatory=$false, ParameterSetName="Center")]
+        [Switch]
+        $Center
     )
     BEGIN { 
         $longest = 0 
         #Lock down the screen size for use later
         $ScreenWidth = ($Host.UI.RawUI.WindowSize.Width - 5)
-#        $retval = ""
         $AllTheLines = @()
     }
     PROCESS {
@@ -549,7 +578,15 @@ function Write-Box {
             #And then actually process the lines for output
             foreach ($line in $hold.ToString().Split("`n")) {
                 #Box shape is a bar, a space, the text (padded to "longest" width, a space, and a bar
-                "│$($Char)$($line.ToString().PadRight($longest, $Char))$Char│"
+                if ($Center) {
+                    "│$($Char)$(write-Center $line.ToString() -width ($longest + 1) -char $Char)$Char│"
+                }
+                elseIf ($Right) {
+                    "│$($Char)$(write-Right $line.ToString() -width ($longest + 1) -char $Char)$Char│"
+                }
+                else {
+                    "│$($Char)$($line.ToString().PadRight($longest, $Char))$Char│"
+                }
             }
         }
         #Now draw the bottom of the box
@@ -609,6 +646,7 @@ function Write-Reverse {
     END { }
 }
 
+new-alias -name  reverse -Value Write-Reverse -Description "Reverse text" -force
 
 function Out-Speech { 
     <# 
