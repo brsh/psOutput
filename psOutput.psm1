@@ -65,12 +65,8 @@ function Write-Heading {
             $hold = WrapTheLines $line $ScreenWidth
             #And pad the text on the right for the background color change
             foreach ($newline in $hold.split("`n")) {
-                $retval = $newline.PadRight($ScreenWidth, $Char)
-                $retval += "`n"
+                Write-Host $newline.PadRight($ScreenWidth, $Char) -ForegroundColor $Fore -BackgroundColor $Back
             }
-        }
-        foreach ($line in $retval.TrimEnd("`n").split("`n")) {
-             Write-Host $line -ForegroundColor $Fore -BackgroundColor $Back
         }
     }
     END { }
@@ -228,15 +224,9 @@ function Write-Center {
             $hold = WrapTheLines $line $ScreenWidth
             #And pad the text on the left and right for the background color change
             foreach ($newline in $hold.split("`n")) {
-                $retval = $newline.PadRight((($ScreenWidth / 2) + ($newline.Length / 2)), $char).PadLeft($ScreenWidth, $char)
-                $retval += "`n"
+                $newline.PadRight((($ScreenWidth / 2) + ($newline.Length / 2)), $char).PadLeft($ScreenWidth, $char)
             }
         }
-        try { 
-            #return what we put together and remove any extra, trailing newline
-            #could be empty, so try it, but do nothing if it errors.
-            return $retval.TrimEnd("`n")
-        } catch {}
     }
     END { }
 }
@@ -276,20 +266,13 @@ function Write-Right {
         $retval = ""
     }
     PROCESS {
-
         foreach ($line in $text) {
             $hold = WrapTheLines $line $ScreenWidth
             #And pad the text on the left
             foreach ($newline in $hold.split("`n")) {
-                $retval = $newline.ToString().PadLeft(($ScreenWidth), $char)
-                $retval += "`n"
+                $newline.ToString().PadLeft(($ScreenWidth), $char)
             }
         }
-        try { 
-            #return what we put together and remove any extra, trailing newline
-            #could be empty, so try it, but do nothing if it errors.
-            return $retval.TrimEnd("`n")
-        } catch {}
     }
     END { }
 }
@@ -458,12 +441,6 @@ Function Write-Flag {
     .PARAMETER  Char 
         The spacer character (defaults to space).
 
-    .PARAMETER  Fore
-        Foreground color
-
-    .PARAMETER  Back
-        Background color
-
     .EXAMPLE 
         PS C:\> Write-Flag
 
@@ -473,48 +450,28 @@ Function Write-Flag {
         PS C:\> Write-Flag "This is complete"
 
         Outputs a screen-wide box with the message "This is complete"
-     
-    .EXAMPLE 
-        PS C:\> Write-Flag "Done!" -bw
-
-        Outputs a screen-wide box with the message "Done!" in the current foreground and background colors
 
     .INPUTS 
-        System.String, System-ConsoleColor
+        System.String
     #> 
     param (
         [Parameter(Position=0, Mandatory=$false, ValueFromPipeline=$True)] 
         [System.String] 
         $Text = (Get-Date).ToString("dddd -- MMMM d, yyyy -- h:mmtt"),
         [Parameter(Position=1,Mandatory=$False)]
-        [Char] $Char = " ",
-        [Parameter(Position=2,Mandatory=$False)]
-        [System.ConsoleColor]
-        $Fore = (DefaultHeadingForeground),
-        [Parameter(Position=3,Mandatory=$False)]
-        [System.ConsoleColor]
-        $Back = (DefaultHeadingBackground)
+        [Char] $Char = " "
     )
     BEGIN { 
-        #See the Write-Box comments for the diatribe on why I abuse the correct usage of Advanced Functions :(
-        #Write the top line/separator
-        $retval = Write-Repeating
-        $retval += "`n"
+        #Write the opening line/separator
+        Write-Repeating
     }
     PROCESS {
         #Write each line (center takes care of lines longer than screenwidth)
-        $retval += (write-center $text -char $Char)
-        $retval += "`n"
+        write-center $text -char $Char
     }
     END { 
-        #Add in the closing line/separator
-        $retval += Write-Repeating
-        #And output - either as an object or as text with formatting
-        if (($Fore -eq (DefaultHeadingForeground)) -and ($Back = (DefaultHeadingBackground))) {
-            $retval
-        } else {
-            Write-Host $retval -ForegroundColor $Fore -BackgroundColor $Back
-        }
+        #Write in the closing line/separator
+        Write-Repeating
     }
 }
 
@@ -526,7 +483,9 @@ function Write-Box {
         Date- or Text-Box 
  
     .DESCRIPTION 
-        Writes a box - either with the current time/date or with custom text. Useful to call attention to a specific item on the screen. By default, the output is an Object that can be piped to other cmdlets or functions (like my write-right function). You can also specify fore- and back-ground colors, but then the output is text and completely non-pipe-able.
+        Writes a box - either with the current time/date or with custom text. Useful to call attention to a specific item on the screen.
+        
+        See https://en.wikipedia.org/wiki/Box_Drawing for box shapes
  
     .PARAMETER  Text 
         Type in the text you want here. An empty string will use the current time/date
@@ -534,29 +493,18 @@ function Write-Box {
     .PARAMETER  Char 
         The spacer character (defaults to space).
 
-    .PARAMETER  Fore
-        Foreground color
-
-    .PARAMETER  Back
-        Background color
-
     .EXAMPLE 
         PS C:\> Write-Box
 
-        Outputs (as an OBJECT) a text-wide box with the current time/date
+        Outputs a text-wide box with the current time/date
          
     .EXAMPLE 
         PS C:\> Write-Box "This is complete"
 
-        Outputs (as an OBJECT) a text-wide box with the message "This is complete"
-     
-    .EXAMPLE 
-        PS C:\> Write-Box "Done!" -fore red -back blue
-
-        Outputs (as TEXT) a text-wide box with the message "Done!" as red text on blue background
+        Outputs a text-wide box with the message "This is complete"
 
     .INPUTS 
-        System.String, System-ConsoleColor
+        System.String
     #> 
     [CmdletBinding()]
     param (
@@ -564,19 +512,13 @@ function Write-Box {
         [System.String] 
         $Text = (Get-Date).ToString("dddd -- MMMM d, yyyy -- h:mmtt"),
         [Parameter(Position=1,Mandatory=$False)]
-        [Char] $Char = " ",
-        [Parameter(Position=2,Mandatory=$False)]
-        [System.ConsoleColor]
-        $Fore = (DefaultHeadingForeground),
-        [Parameter(Position=3,Mandatory=$False)]
-        [System.ConsoleColor]
-        $Back = (DefaultHeadingBackground)
+        [Char] $Char = " "
     )
     BEGIN { 
         $longest = 0 
         #Lock down the screen size for use later
         $ScreenWidth = ($Host.UI.RawUI.WindowSize.Width - 5)
-        $retval = ""
+#        $retval = ""
         $AllTheLines = @()
     }
     PROCESS {
@@ -598,12 +540,8 @@ function Write-Box {
     END {
         #Check if the longest line is bigger than the screen - and limit it as necessary
         if ($longest -gt $ScreenWidth) { $longest = $ScreenWidth }
-        #Now, draw the top of the box
-        #See https://en.wikipedia.org/wiki/Box_Drawing for box shapes
-        $retval = "┌"
-        $retval += Write-Repeating -width ($longest + 2)
-        $retval += "┐"
-        $retval += "`n"
+        #Draw the top of the box
+        "┌$(Write-Repeating -width ($longest + 2))┐"
         #And then process each line in the collection for output
         foreach ($line in $AllTheLines) {
             #BUT, break up any line longer than the screenwidth
@@ -611,28 +549,66 @@ function Write-Box {
             #And then actually process the lines for output
             foreach ($line in $hold.ToString().Split("`n")) {
                 #Box shape is a bar, a space, the text (padded to "longest" width, a space, and a bar
-                $retval += "│"
-                $retval += $Char
-                $retval += $line.ToString().PadRight($longest, $Char)
-                $retval += $Char
-                $retval += "│"
-                $retval += "`n"
+                "│$($Char)$($line.ToString().PadRight($longest, $Char))$Char│"
             }
         }
         #Now draw the bottom of the box
-        $retval += "└"
-        $retval += Write-Repeating -width ($longest + 2)
-        $retval += "┘"
-        #And output - either as an object or as text with formatting
-        if (($Fore -eq (DefaultHeadingForeground)) -and ($Back = (DefaultHeadingBackground))) {
-            $retval
-        } else {
-            Write-Host $retval -ForegroundColor $Fore -BackgroundColor $Back
-        }
+        "└$(Write-Repeating -width ($longest + 2))┘"
     }
 }
 
 new-alias -Name box -Value Write-Box -Description "Date- or Text-box marker" -force
+
+function Write-Reverse {
+    <# 
+    .SYNOPSIS 
+        Reverse the text
+ 
+    .DESCRIPTION 
+        Putting the fun in function: takes the input texts and prints it backwards (well, reorders the letters so they are in the reverse order - it doesn't print backwards characters, unfortunately). Prints the date backwards by default.
+ 
+    .PARAMETER  Text 
+        Type in the text you want here. An empty string will use the current time/date
+
+    .EXAMPLE 
+        PS C:\> Write-Reverse
+
+        MA32:01 -- 6102 ,82 hcraM -- yadnoM
+         
+    .EXAMPLE 
+        PS C:\> Write-Reverse | Write-Reverse
+
+        Monday -- March 28, 2016 -- 10:24AM
+     
+    .EXAMPLE 
+        PS C:\> get-content .\Test.txt | Write-Reverse
+
+        elif tset a si sihT
+        uoy t'nod ,ti evol tsuj uoY
+        
+    .INPUTS 
+        System.String
+    #> 
+    [CmdletBinding()]
+    param (
+        [Parameter(Position=0, Mandatory=$false, ValueFromPipeline=$true)] 
+        [System.String] 
+        $Text = (Get-Date).ToString("dddd -- MMMM d, yyyy -- h:mmtt")
+    )
+    BEGIN {
+        $ScreenWidth = ($Host.UI.RawUI.WindowSize.Width - 1)
+    }
+    PROCESS { 
+        ForEach ($line in $Text) {
+            $hold = WrapTheLines $line $ScreenWidth
+            ForEach ($newline in $hold.Split("`n")) {
+                $newline[$newline.ToString().Length..0] -join ""
+            }
+        }
+    }
+    END { }
+}
+
 
 function Out-Speech { 
     <# 
