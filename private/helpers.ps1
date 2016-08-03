@@ -1,4 +1,4 @@
-﻿## Helper Functions for psSysInfo Module
+﻿## Helper Functions for psOutput Module
 
 function CurrBackground {
     $host.ui.rawui.BackgroundColor

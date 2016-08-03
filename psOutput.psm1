@@ -307,16 +307,16 @@ function Write-Trace {
       The actual message to be logged.
     .Parameter Component
       The Component generating the logging event.
-    .Parameter File
+    .Parameter Fil
       The File generating the logging event.
     .Parameter Thread
       The Thread ID of the thread generating the logging event.
     .Parameter Context
     .Parameter FilePath
-      The path to the log file to be generated/written to. By default this cmdlet looks for a
+      The path to the log file to be generated/written to. This function will use an "overall"
       variable called "WRITELOGFILEPATH" and uses whatever path is there. This variable can be
       set in the script prior to calling this cmdlet. Alternatively a path to a file may be
-      provided.
+      provided. If not set, this will output to screen.
     .Parameter Type
       The type of event being logged. Valid values are 1, 2 and 3. Each number corresponds to a 
       message type:
@@ -339,7 +339,10 @@ function Write-Trace {
   
   begin
   {
-    $TZBias = (Get-WmiObject -Query "Select Bias from Win32_TimeZone").bias
+    [string] $TZBias = (Get-WmiObject -Query "Select Bias from Win32_TimeZone").bias
+    if (-not ($TZBias.StartsWith("-") -or $TZBias.StartsWith("+"))) {
+        $TZBias = "+" + $TZBias.ToString()
+    }
   }
   
   process
@@ -352,7 +355,17 @@ function Write-Trace {
     $Output += "thread=`"$($Thread)`" file=`"$($File)`">"
     
     Write-Verbose "$Time $Date`t$Message"
-    Out-File -InputObject $Output -Append -NoClobber -Encoding Default -FilePath $FilePath
+    if ($FilePath) {
+        Out-File -InputObject $Output -Append -NoClobber -Encoding Default -FilePath $FilePath
+    }
+    else {
+        switch ($type) {
+            2 { $color = [System.ConsoleColor]::Yellow; break }
+            3 { $color = [System.ConsoleColor]::Red; break }
+            Default { $color = [System.ConsoleColor]::White; break }
+        }
+        write-host $Output -ForegroundColor $color -BackgroundColor Black
+    }
   }
 }
 New-Alias -name wt -value Write-Trace -Description "Write output in trace32 format" -Force
