@@ -769,8 +769,7 @@ New-Alias -Name clr -value Format-Color -Description "Re-color output text" -For
 
 ############# Conversions ###############
 
-function ConvertFrom-SID
- {
+function ConvertFrom-SID {
    <#
     .SYNOPSIS
         Security ID to Username
@@ -780,9 +779,9 @@ function ConvertFrom-SID
         ConvertFrom-sid S-1-5-21-4079184686-3691728653-2528636808-500
   #>
   param([string]$SID="S-1-0-0")
-  $objSID = New-Object System.Security.Principal.SecurityIdentifier($SID)
-  $objUser = $objSID.Translate([System.Security.Principal.NTAccount])
-  Return $objUser.Value
+            $objSID = New-Object System.Security.Principal.SecurityIdentifier($SID)
+            $objUser = $objSID.Translate([System.Security.Principal.NTAccount])
+            $objUser.Value
  }
 
  function ConvertTo-SID
