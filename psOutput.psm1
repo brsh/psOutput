@@ -171,7 +171,8 @@ function Write-Repeating {
 		$Character = "─",
 		[Parameter(Position = 1)]
 		[System.Int16]
-		$Width = (($Host.UI.RawUI.WindowSize.Width) - 1)
+		$Width = (($Host.UI.RawUI.WindowSize.Width) - 1),
+		[switch] $Rainbow = $false
 	)
 
 	#set the line width based on console width divided by number of chars in the string
@@ -182,8 +183,16 @@ function Write-Repeating {
 	#Let's keep it all on one line, please.
 	while ( (($width) * ($Character.Length)) -gt (($Host.UI.RawUI.WindowSize.Width) - 1)) { $width -= 1 }
 
+	$allColors = ("-Black", "-DarkBlue", "-DarkGreen", "-DarkCyan", "-DarkRed", "-DarkMagenta", "-DarkYellow", "-Gray",
+		"-Darkgray", "-Blue", "-Green", "-Cyan", "-Red", "-Magenta", "-Yellow", "-White",
+		"-Foreground")
+
 	#output the line
-	$($Character.ToString() * $Width)
+	if (-not $Rainbow) {
+		$($Character.ToString() * $Width)
+	} else {
+		Write-Rainbow $($Character.ToString() * $Width)
+	}
 }
 
 new-alias -Name repeat -Value Write-Repeating -description "Repeat a character x times" -force
@@ -367,6 +376,22 @@ function Write-Trace {
 }
 New-Alias -name wt -value Write-Trace -Description "Write output in trace32 format" -Force
 
+function Write-Rainbow {
+	param (
+		$Text = 'You should supply a text parameter'
+	)
+	$bgcolor = $host.ui.RawUI.BackgroundColor.ToString()
+	[System.Collections.ArrayList] $allColors = ("Black", "DarkBlue", "DarkGreen", "DarkCyan", "DarkRed", "DarkMagenta", "DarkYellow", "Gray",
+		"Darkgray", "Blue", "Green", "Cyan", "Red", "Magenta", "Yellow", "White")
+	$allColors.Remove($bgcolor)
+	$a = $text.ToCharArray()
+	$a | ForEach-Object {
+		Write-Host $_ -NoNewline -ForegroundColor $($allColors | get-random)
+	}
+	write-host ''
+
+}
+
 function Write-ColorText {
 	<#
     .Synopsis
@@ -543,13 +568,15 @@ function Write-Box {
 		$Right,
 		[Parameter(Mandatory = $false, ParameterSetName = "Center")]
 		[Switch]
-		$Center
+		$Center,
+		[switch] $Rainbow = $false
 	)
 	BEGIN {
 		$longest = 0
 		#Lock down the screen size for use later
 		$ScreenWidth = ($Host.UI.RawUI.WindowSize.Width - 5)
 		$AllTheLines = @()
+		$retval = @()
 	}
 	PROCESS {
 		#I want the box around the whole thing - not lots of little boxes
@@ -561,19 +588,20 @@ function Write-Box {
 		#The "best" option I could find was using process to build a "total"
 		#and breaking it out in END. If someone has a better way, please let me know!!
 		foreach ($line in $Text) {
-			#First get the length to see if it's the longest line
-			if ($line.ToString().Length -gt $longest) { $longest = $line.ToString().Length }
-			#Then add the line to the combination var
-			$AllTheLines += $line
+			#First get the length to see if it's the longest line (adjusting the tab char along the way)
+			$trimmed = $line.ToString().Replace("`t", '    ')
+			if ($trimmed.Length -gt $longest) { $longest = $trimmed.Length }
+			##Then add the line to the combination var
+			$AllTheLines += $trimmed
 		}
 	}
 	END {
 		#Check if the longest line is bigger than the screen - and limit it as necessary
 		if ($longest -gt $ScreenWidth) { $longest = $ScreenWidth }
 		#Draw the top of the box
-		"┌$(Write-Repeating -width ($longest + 2))┐"
+		$retval += "┌$(Write-Repeating -width ($longest + 2))┐"
 		#And then process each line in the collection for output
-		foreach ($line in $AllTheLines) {
+		$retval += foreach ($line in $AllTheLines) {
 			#BUT, break up any line longer than the screenwidth
 			$hold = WrapTheLines $line $ScreenWidth
 			#And then actually process the lines for output
@@ -589,7 +617,12 @@ function Write-Box {
 			}
 		}
 		#Now draw the bottom of the box
-		"└$(Write-Repeating -width ($longest + 2))┘"
+		$retval += "└$(Write-Repeating -width ($longest + 2))┘"
+		if (-not $Rainbow) {
+			$retval
+		} else {
+			$retval | ForEach-Object { Write-Rainbow $_ }
+		}
 	}
 }
 
